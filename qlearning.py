@@ -8,12 +8,13 @@ from collections import defaultdict
 from lib import plotting
 #from utils.format import get_obss_preprocessor
 import torch
+from scipy.stats import entropy
 
 
 #ENV_NAME = 'MiniGrid-DoorKey-5x5-v0'
 #ENV_NAME = 'MiniGrid-Empty-5x5-v0'
-#ENV_NAME = 'CartPole-v0'
-ENV_NAME = 'Taxi-v2'
+ENV_NAME = 'CartPole-v0'
+#ENV_NAME = 'Taxi-v2'
 env = gym.make(ENV_NAME)
 #env = gym_minigrid.wrappers.FlatObsWrapper(gym.make(ENV_NAME))
 logging.info(ENV_NAME)
@@ -43,7 +44,7 @@ def make_policy(q, num_actions, epsilon):
     return policy
 
 
-def q_learning(env, num_episodes, alpha, gamma, epsilon):
+def q_learning(env, num_episodes, alpha, gamma, epsilon, *, max_entropy):
     """Find the optimal policy using off-policy Q-learning
 
     :param env: OpenAI environment
@@ -58,7 +59,8 @@ def q_learning(env, num_episodes, alpha, gamma, epsilon):
     statistics = plotting.EpisodeStats(
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
-    q = np.zeros([env.observation_space.n, env.action_space.n])
+    nA = env.action_space.n
+    q = defaultdict(lambda: np.zeros(nA))
     for episode_idx in range(num_episodes):
         if (episode_idx + 1) % 10 == 0:
             print("\nEpisode {}/{}"
@@ -75,11 +77,15 @@ def q_learning(env, num_episodes, alpha, gamma, epsilon):
             next_observation = torch.tensor(next_observation)
             statistics.episode_rewards[episode_idx] += reward
             statistics.episode_lengths[episode_idx] = t
-            best_next_action_value = max(
-                [q[next_observation][next_action] - q[observation][action]
-                 for next_action
-                 in np.arange(len(q[next_observation]))])
-            q[observation] += alpha * (reward + gamma * best_next_action_value)
+            next_action_values = [q[next_observation][next_action]
+                                  for next_action
+                                  in np.arange(nA)]
+            best_next_q = max(q[next_observation])
+            entropy_bonus = entropy(action_distribution)
+            if max_entropy:
+                q[observation][action] += alpha * (reward + gamma * best_next_q - q[observation][action] + entropy_bonus)
+            else:
+                q[observation][action] += alpha * (reward + gamma * best_next_q - q[observation][action])
             if done:
                 terminal = True
             else:
@@ -90,5 +96,5 @@ def q_learning(env, num_episodes, alpha, gamma, epsilon):
 
 
 if __name__ == '__main__':
-    q, stats = q_learning(env, 400, .1, 1, .1)
+    q, stats = q_learning(env, 500, .5, .99, .1, max_entropy=False)
     plotting.plot_episode_stats(stats)
