@@ -63,7 +63,7 @@ def plot_value_function(V, title="Value Function"):
 
 
 
-def plot_episode_stats(stats, smoothing_window=10, noshow=False):
+def plot_episode_stats(stats, smoothing_window=100, noshow=False):
     # Plot the episode length over time
     fig1 = plt.figure(figsize=(10,5))
     plt.plot(stats.episode_lengths)

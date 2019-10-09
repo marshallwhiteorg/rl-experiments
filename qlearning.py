@@ -11,9 +11,10 @@ import torch
 from scipy.stats import entropy
 
 
+ENV_NAME = 'Blackjack-v0'
 #ENV_NAME = 'MiniGrid-DoorKey-5x5-v0'
 #ENV_NAME = 'MiniGrid-Empty-5x5-v0'
-ENV_NAME = 'CartPole-v0'
+#ENV_NAME = 'CartPole-v0'
 #ENV_NAME = 'Taxi-v2'
 env = gym.make(ENV_NAME)
 #env = gym_minigrid.wrappers.FlatObsWrapper(gym.make(ENV_NAME))
@@ -33,7 +34,7 @@ def make_policy(q, num_actions, epsilon):
 
     """
     def policy(observation):
-        best_action_idx = np.argmax(q[observation])
+        best_action_idx = np.argmax(q[observation] + 1e-10 * np.random.random(q[observation].shape))
         distribution = []
         for action_idx in range(num_actions):
             probability = epsilon / num_actions
@@ -67,13 +68,14 @@ def q_learning(env, num_episodes, alpha, gamma, epsilon, *, max_entropy):
                   .format(episode_idx + 1, num_episodes))
         observation = torch.tensor(env.reset())
         terminal = False
-        t = 0
+        t = 1
         while not terminal:
             policy = make_policy(q, env.action_space.n, epsilon)
             action_distribution = policy(observation)
             action = np.random.choice(np.arange(len(action_distribution)),
                                       p=action_distribution)
             next_observation, reward, done, _ = env.step(action)
+            #print(observation, reward, action, next_observation, done)
             next_observation = torch.tensor(next_observation)
             statistics.episode_rewards[episode_idx] += reward
             statistics.episode_lengths[episode_idx] = t
@@ -96,5 +98,5 @@ def q_learning(env, num_episodes, alpha, gamma, epsilon, *, max_entropy):
 
 
 if __name__ == '__main__':
-    q, stats = q_learning(env, 500, .5, .99, .1, max_entropy=False)
+    q, stats = q_learning(env, 5000, .1, .99, .1, max_entropy=False)
     plotting.plot_episode_stats(stats)
